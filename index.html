@@ -1,2 +1,64 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>หน้าหลักลูกค้า - ระบบกระเป๋าเงิน</title>
+    <style>
+        body { font-family: sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        h2 { color: #333; margin-bottom: 20px; }
+        .balance-box { background: #e8f5e9; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .balance { font-size: 2.5rem; color: #2e7d32; font-weight: bold; }
+        input, button { width: 100%; padding: 12px; margin: 10px 0; box-sizing: border-box; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
 
+    <div class="card">
+        <h2>📱 ยินดีต้อนรับ (ลูกค้า)</h2>
+        <div class="balance-box">
+            <div>ยอดเงินของคุณคงเหลือ</div>
+            <div class="balance">฿ <span id="user-balance">Loading...</span></div>
+        </div>
+        
+        <label for="withdraw-amount" style="display:block; text-align:left; margin-bottom:5px;">ระบุจำนวนเงินที่ต้องการถอน:</label>
+        <input type="number" id="withdraw-amount" placeholder="0.00">
+        <button onclick="requestWithdraw()">💸 ส่งคำขอถอนเงิน</button>
+    </div>
+
+    <script>
+        async function fetchBalance() {
+            try {
+                const res = await fetch('/api/db');
+                const data = await res.json();
+                document.getElementById('user-balance').innerText = parseFloat(data.balance).toLocaleString();
+            } catch (e) {
+                document.getElementById('user-balance').innerText = "ข้อผิดพลาด";
+            }
+        }
+        
+        async function requestWithdraw() {
+            let amount = document.getElementById('withdraw-amount').value;
+            if(!amount || amount <= 0) return alert('กรุณาระบุจำนวนเงิน');
+            
+            const res = await fetch('/api/db', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'withdraw', amount: amount })
+            });
+            const data = await res.json();
+            if(data.success) {
+                alert('ถอนเงินสำเร็จ ยอดเงินในระบบถูกหักแล้ว!');
+                fetchBalance();
+            }
+            document.getElementById('withdraw-amount').value = '';
+        }
+
+        fetchBalance();
+    </script>
+</body>
+</html>
  
