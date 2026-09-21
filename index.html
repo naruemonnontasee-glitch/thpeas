@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>หน้าหลักลูกค้า - ระบบกระเป๋าเงิน</title>
+    <title>ระบบกระเป๋าเงินออนไลน์ (Wallet System)</title>
     <style>
         body { font-family: sans-serif; background: #f0f2f5; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
         .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; margin-bottom: 25px; }
@@ -13,8 +13,9 @@
         input, button { width: 100%; padding: 12px; margin: 10px 0; box-sizing: border-box; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem; }
         button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; transition: 0.2s; }
         button:hover { background: #0056b3; }
+        .logout-btn { background: #777; margin-top: 15px; }
+        .logout-btn:hover { background: #555; }
         
-        /* สไตล์ของตารางประวัติธุรกรรม */
         .history-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
         .history-title { font-size: 1.2rem; font-weight: bold; color: #444; margin-bottom: 15px; text-align: left; border-left: 4px solid #007bff; padding-left: 10px; }
         table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.95rem; }
@@ -27,21 +28,31 @@
 </head>
 <body>
 
-    <!-- การ์ดแสดงยอดเงินและแจ้งถอน -->
-    <div class="card">
-        <h2>📱 ยินดีต้อนรับ (ลูกค้า)</h2>
+    <!-- 🔐 1. หน้าจอเข้าสู่ระบบสำหรับลูกค้า (Login Screen) -->
+    <div id="login-section" class="card">
+        <h2>🔐 เข้าสู่ระบบลูกค้า</h2>
+        <p style="color: #666; font-size: 0.9rem;">กรุณากรอกบัญชีผู้ใช้ที่แอดมินสร้างให้</p>
+        <input type="text" id="login-username" placeholder="ชื่อผู้ใช้งาน (Username)">
+        <input type="password" id="login-password" placeholder="รหัสผ่าน (Password)">
+        <button onclick="loginUser()">🔓 เข้าสู่ระบบ</button>
+    </div>
+
+    <!-- 📱 2. หน้าจอหลักกระเป๋าเงิน (แสดงหลังล็อกอินสำเร็จ) -->
+    <div id="wallet-section" class="card" style="display: none;">
+        <h2>📱 ยินดีต้อนรับ คุณ <span id="display-name" style="color:#007bff;">-</span></h2>
         <div class="balance-box">
-            <div>ยอดเงินของคุณคงเหลือ</div>
-            <div class="balance">฿ <span id="user-balance">5,000</span></div>
+            <div>ยอดเงินคงเหลือของคุณ</div>
+            <div class="balance">฿ <span id="user-balance">0</span></div>
         </div>
         
         <label for="withdraw-amount" style="display:block; text-align:left; margin-bottom:5px;">ระบุจำนวนเงินที่ต้องการถอน:</label>
         <input type="number" id="withdraw-amount" placeholder="0.00">
         <button onclick="requestWithdraw()">💸 ส่งคำขอถอนเงิน</button>
+        <button onclick="logoutUser()" class="logout-btn">🔒 ออกจากระบบ</button>
     </div>
 
-    <!-- การ์ดแสดงตารางประวัติธุรกรรม -->
-    <div class="history-card">
+    <!-- 📜 3. ตารางประวัติธุรกรรม (แสดงหลังล็อกอินสำเร็จ) -->
+    <div id="history-section" class="history-card" style="display: none;">
         <div class="history-title">📜 ประวัติธุรกรรมย้อนหลัง</div>
         <table>
             <thead>
@@ -51,40 +62,68 @@
                     <th>จำนวนเงิน</th>
                 </tr>
             </thead>
-            <tbody id="history-table-body">
-                <!-- ข้อมูลประวัติจะถูกเพิ่มเข้ามาด้วย JavaScript ตรงนี้ -->
-            </tbody>
+            <tbody id="history-table-body"></tbody>
         </table>
         <div id="empty-history" class="empty-text" style="display: none;">ยังไม่มีประวัติการทำรายการ</div>
     </div>
 
     <script>
-        // ฟังก์ชันดึงยอดเงินและตารางประวัติมาแสดงผล
-        function fetchBalanceAndHistory() {
-            // 1. ดึงยอดเงิน
-            let currentBalance = localStorage.getItem('wallet_balance');
-            if (currentBalance === null) {
-                localStorage.setItem('wallet_balance', '5000');
-                currentBalance = '5000';
+        // ฟังก์ชันจัดการเข้าสู่ระบบของลูกค้า
+        function loginUser() {
+            let uName = document.getElementById('login-username').value.trim();
+            let uPass = document.getElementById('login-password').value;
+            
+            if(!uName || !uPass) return alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+            
+            let users = JSON.parse(localStorage.getItem('wallet_users')) || {};
+            
+            // ตรวจสอบชื่อและรหัสผ่านในระบบ
+            if(users[uName] && users[uName].password === uPass) {
+                sessionStorage.setItem('current_wallet_user', uName);
+                alert('✅ เข้าสู่ระบบสำเร็จ!');
+                checkLoginStatus();
+            } else {
+                alert('❌ ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง');
             }
-            document.getElementById('user-balance').innerText = parseFloat(currentBalance).toLocaleString();
+        }
 
-            // 2. ดึงประวัติธุรกรรม
-            let history = JSON.parse(localStorage.getItem('wallet_history')) || [];
+        // ฟังก์ชันเช็คสถานะการล็อกอินตอนเปิดหน้าเว็บ
+        function checkLoginStatus() {
+            let currentUser = sessionStorage.getItem('current_wallet_user');
+            if(currentUser) {
+                document.getElementById('login-section').style.display = 'none';
+                document.getElementById('wallet-section').style.display = 'block';
+                document.getElementById('history-section').style.display = 'block';
+                document.getElementById('display-name').innerText = currentUser;
+                fetchData();
+            } else {
+                document.getElementById('login-section').style.display = 'block';
+                document.getElementById('wallet-section').style.display = 'none';
+                document.getElementById('history-section').style.display = 'none';
+            }
+        }
+
+        // ฟังก์ชันดึงยอดเงินและประวัติของยูสเซอร์ปัจจุบัน
+        function fetchData() {
+            let currentUser = sessionStorage.getItem('current_wallet_user');
+            if(!currentUser) return;
+
+            let users = JSON.parse(localStorage.getItem('wallet_users')) || {};
+            let userData = users[currentUser] || { balance: 0, history: [] };
+
+            document.getElementById('user-balance').innerText = parseFloat(userData.balance).toLocaleString();
+
             let tableBody = document.getElementById('history-table-body');
             let emptyText = document.getElementById('empty-history');
+            tableBody.innerHTML = '';
             
-            tableBody.innerHTML = ''; // ล้างตารางเก่าก่อนวาดใหม่
-            
-            if (history.length === 0) {
+            if (!userData.history || userData.history.length === 0) {
                 emptyText.style.display = 'block';
             } else {
                 emptyText.style.display = 'none';
-                // วนลูปเอาประวัติล่าสุดขึ้นก่อน (ย้อนจากท้ายอาร์เรย์)
-                for (let i = history.length - 1; i >= 0; i--) {
-                    let item = history[i];
+                for (let i = userData.history.length - 1; i >= 0; i--) {
+                    let item = userData.history[i];
                     let row = document.createElement('tr');
-                    
                     let typeClass = item.type === 'ฝาก/เพิ่มเงิน' ? 'type-add' : 'type-withdraw';
                     let prefix = item.type === 'ฝาก/เพิ่มเงิน' ? '+' : '-';
 
@@ -100,47 +139,45 @@
         
         // ฟังก์ชันเมื่อลูกค้ากดถอนเงิน
         function requestWithdraw() {
+            let currentUser = sessionStorage.getItem('current_wallet_user');
             let amount = parseFloat(document.getElementById('withdraw-amount').value);
             if(!amount || amount <= 0) return alert('กรุณาระบุจำนวนเงิน');
             
-            let currentBalance = parseFloat(localStorage.getItem('wallet_balance')) || 0;
-            if (amount > currentBalance) {
+            let users = JSON.parse(localStorage.getItem('wallet_users')) || {};
+            let userData = users[currentUser];
+            
+            if (amount > parseFloat(userData.balance)) {
                 return alert('ยอดเงินของคุณไม่เพียงพอสำหรับการถอน');
             }
             
-            let newBalance = currentBalance - amount;
-            localStorage.setItem('wallet_balance', newBalance.toString());
+            // หักเงิน
+            userData.balance = parseFloat(userData.balance) - amount;
             
-            // 📝 บันทึกเหตุการณ์ลงในประวัติ
-            let history = JSON.parse(localStorage.getItem('wallet_history')) || [];
+            // บันทึกประวัติ
             let now = new Date();
             let timeString = now.toLocaleDateString('th-TH') + ' ' + now.toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'});
+            if(!userData.history) userData.history = [];
+            userData.history.push({ time: timeString, type: 'ถอนเงิน', amount: amount });
             
-            history.push({
-                time: timeString,
-                type: 'ถอนเงิน',
-                amount: amount
-            });
-            localStorage.setItem('wallet_history', JSON.stringify(history));
-            localStorage.setItem('wallet_update_trigger', Date.now().toString()); // ส่งสัญญาณบอกหน้าแอดมิน
+            users[currentUser] = userData;
+            localStorage.setItem('wallet_users', JSON.stringify(users));
+            localStorage.setItem('wallet_update_trigger', Date.now().toString());
             
             alert('ถอนเงินจำนวน ' + amount.toLocaleString() + ' บาทสำเร็จ!');
-            fetchBalanceAndHistory();
+            fetchData();
             document.getElementById('withdraw-amount').value = '';
         }
 
-        // เริ่มทำงานทันทีเมื่อเปิดหน้าจอ
-        fetchBalanceAndHistory();
-        
-        // ดักรับสัญญาณการเติมเงินแบบ Real-time จากหน้าแอดมิน
+        function logoutUser() {
+            sessionStorage.removeItem('current_wallet_user');
+            checkLoginStatus();
+        }
+
+        checkLoginStatus();
         window.addEventListener('storage', function(e) {
-            if (e.key === 'wallet_balance' || e.key === 'wallet_update_trigger' || e.key === 'wallet_history') {
-                fetchBalanceAndHistory();
-            }
+            if (e.key === 'wallet_users' || e.key === 'wallet_update_trigger') fetchData();
         });
-        
-        // ตรวจสอบข้อมูลอัตโนมัติทุกๆ 2 วินาทีเพื่อความชัวร์
-        setInterval(fetchBalanceAndHistory, 2000);
+        setInterval(fetchData, 2000);
     </script>
 </body>
 </html>
