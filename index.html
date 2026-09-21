@@ -5,18 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>หน้าหลักลูกค้า - ระบบกระเป๋าเงิน</title>
     <style>
-        body { font-family: sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
-        h2 { color: #333; margin-bottom: 20px; }
+        body { font-family: sans-serif; background: #f0f2f5; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; margin-bottom: 25px; }
+        h2 { color: #333; margin-bottom: 20px; margin-top: 0; }
         .balance-box { background: #e8f5e9; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
         .balance { font-size: 2.5rem; color: #2e7d32; font-weight: bold; }
         input, button { width: 100%; padding: 12px; margin: 10px 0; box-sizing: border-box; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem; }
         button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; transition: 0.2s; }
         button:hover { background: #0056b3; }
+        
+        /* สไตล์ของตารางประวัติธุรกรรม */
+        .history-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
+        .history-title { font-size: 1.2rem; font-weight: bold; color: #444; margin-bottom: 15px; text-align: left; border-left: 4px solid #007bff; padding-left: 10px; }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.95rem; }
+        th, td { padding: 12px 10px; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; color: #666; font-weight: 600; }
+        .type-add { color: #2e7d32; font-weight: bold; }
+        .type-withdraw { color: #c62828; font-weight: bold; }
+        .empty-text { color: #888; text-align: center; padding: 20px 0; }
     </style>
 </head>
 <body>
 
+    <!-- การ์ดแสดงยอดเงินและแจ้งถอน -->
     <div class="card">
         <h2>📱 ยินดีต้อนรับ (ลูกค้า)</h2>
         <div class="balance-box">
@@ -29,25 +40,70 @@
         <button onclick="requestWithdraw()">💸 ส่งคำขอถอนเงิน</button>
     </div>
 
+    <!-- การ์ดแสดงตารางประวัติธุรกรรม -->
+    <div class="history-card">
+        <div class="history-title">📜 ประวัติธุรกรรมย้อนหลัง</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>วัน-เวลา</th>
+                    <th>รายการ</th>
+                    <th>จำนวนเงิน</th>
+                </tr>
+            </thead>
+            <tbody id="history-table-body">
+                <!-- ข้อมูลประวัติจะถูกเพิ่มเข้ามาด้วย JavaScript ตรงนี้ -->
+            </tbody>
+        </table>
+        <div id="empty-history" class="empty-text" style="display: none;">ยังไม่มีประวัติการทำรายการ</div>
+    </div>
+
     <script>
-        // ฟังก์ชันดึงยอดเงินจากระบบบันทึกถาวร
-        function fetchBalance() {
+        // ฟังก์ชันดึงยอดเงินและตารางประวัติมาแสดงผล
+        function fetchBalanceAndHistory() {
+            // 1. ดึงยอดเงิน
             let currentBalance = localStorage.getItem('wallet_balance');
             if (currentBalance === null) {
-                // ถ้าเพิ่งเปิดเว็บครั้งแรก ให้เงินเริ่มต้นที่ 5,000 บาท
                 localStorage.setItem('wallet_balance', '5000');
                 currentBalance = '5000';
             }
             document.getElementById('user-balance').innerText = parseFloat(currentBalance).toLocaleString();
+
+            // 2. ดึงประวัติธุรกรรม
+            let history = JSON.parse(localStorage.getItem('wallet_history')) || [];
+            let tableBody = document.getElementById('history-table-body');
+            let emptyText = document.getElementById('empty-history');
+            
+            tableBody.innerHTML = ''; // ล้างตารางเก่าก่อนวาดใหม่
+            
+            if (history.length === 0) {
+                emptyText.style.display = 'block';
+            } else {
+                emptyText.style.display = 'none';
+                // วนลูปเอาประวัติล่าสุดขึ้นก่อน (ย้อนจากท้ายอาร์เรย์)
+                for (let i = history.length - 1; i >= 0; i--) {
+                    let item = history[i];
+                    let row = document.createElement('tr');
+                    
+                    let typeClass = item.type === 'ฝาก/เพิ่มเงิน' ? 'type-add' : 'type-withdraw';
+                    let prefix = item.type === 'ฝาก/เพิ่มเงิน' ? '+' : '-';
+
+                    row.innerHTML = `
+                        <td style="color: #666; font-size: 0.85rem;">${item.time}</td>
+                        <td class="${typeClass}">${item.type}</td>
+                        <td class="${typeClass}">${prefix}฿${parseFloat(item.amount).toLocaleString()}</td>
+                    `;
+                    tableBody.appendChild(row);
+                }
+            }
         }
         
-        // ฟังก์ชันส่งคำขอถอนเงิน
+        // ฟังก์ชันเมื่อลูกค้ากดถอนเงิน
         function requestWithdraw() {
             let amount = parseFloat(document.getElementById('withdraw-amount').value);
             if(!amount || amount <= 0) return alert('กรุณาระบุจำนวนเงิน');
             
             let currentBalance = parseFloat(localStorage.getItem('wallet_balance')) || 0;
-            
             if (amount > currentBalance) {
                 return alert('ยอดเงินของคุณไม่เพียงพอสำหรับการถอน');
             }
@@ -55,20 +111,36 @@
             let newBalance = currentBalance - amount;
             localStorage.setItem('wallet_balance', newBalance.toString());
             
-            alert('ถอนเงินจำนวน ' + amount.toLocaleString() + ' บาทสำเร็จ ยอดเงินในระบบถูกหักแล้ว!');
-            fetchBalance();
+            // 📝 บันทึกเหตุการณ์ลงในประวัติ
+            let history = JSON.parse(localStorage.getItem('wallet_history')) || [];
+            let now = new Date();
+            let timeString = now.toLocaleDateString('th-TH') + ' ' + now.toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'});
+            
+            history.push({
+                time: timeString,
+                type: 'ถอนเงิน',
+                amount: amount
+            });
+            localStorage.setItem('wallet_history', JSON.stringify(history));
+            localStorage.setItem('wallet_update_trigger', Date.now().toString()); // ส่งสัญญาณบอกหน้าแอดมิน
+            
+            alert('ถอนเงินจำนวน ' + amount.toLocaleString() + ' บาทสำเร็จ!');
+            fetchBalanceAndHistory();
             document.getElementById('withdraw-amount').value = '';
         }
 
-        // เช็คยอดเงินทันทีเมื่อโหลดหน้าเว็บ
-        fetchBalance();
+        // เริ่มทำงานทันทีเมื่อเปิดหน้าจอ
+        fetchBalanceAndHistory();
         
-        // คอยอัปเดตยอดเงินแบบ Real-time ถ้าแอดมินกดเติมเงินจากอีกหน้าต่าง
+        // ดักรับสัญญาณการเติมเงินแบบ Real-time จากหน้าแอดมิน
         window.addEventListener('storage', function(e) {
-            if (e.key === 'wallet_balance') {
-                fetchBalance();
+            if (e.key === 'wallet_balance' || e.key === 'wallet_update_trigger' || e.key === 'wallet_history') {
+                fetchBalanceAndHistory();
             }
         });
+        
+        // ตรวจสอบข้อมูลอัตโนมัติทุกๆ 2 วินาทีเพื่อความชัวร์
+        setInterval(fetchBalanceAndHistory, 2000);
     </script>
 </body>
 </html>
