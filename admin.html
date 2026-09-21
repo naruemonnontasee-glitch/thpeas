@@ -33,7 +33,7 @@
             let amount = document.getElementById('add-amount').value;
             if(!amount || amount <= 0) return alert('กรุณากรอกจำนวนเงินให้ถูกต้อง');
             
-            const res = await fetch('/api/db', {
+            const res = await fetch('/api/db.js', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'add', amount: amount })
