@@ -10,48 +10,63 @@
         h2 { color: #333; margin-bottom: 20px; margin-top: 0; }
         .balance-box { background: #e8f5e9; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
         .balance { font-size: 2.5rem; color: #2e7d32; font-weight: bold; }
-        input, button { width: 100%; padding: 12px; margin: 10px 0; box-sizing: border-box; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem; }
+        input, button, select { width: 100%; padding: 12px; margin: 8px 0; box-sizing: border-box; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem; }
         button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; transition: 0.2s; }
         button:hover { background: #0056b3; }
         .logout-btn { background: #777; margin-top: 15px; }
         .logout-btn:hover { background: #555; }
         
-        .history-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
+        .history-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 600px; }
         .history-title { font-size: 1.2rem; font-weight: bold; color: #444; margin-bottom: 15px; text-align: left; border-left: 4px solid #007bff; padding-left: 10px; }
         table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.95rem; }
-        th, td { padding: 12px 10px; border-bottom: 1px solid #eee; }
+        th, td { padding: 12px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
         th { background: #f8f9fa; color: #666; font-weight: 600; }
         .type-add { color: #2e7d32; font-weight: bold; }
         .type-withdraw { color: #c62828; font-weight: bold; }
         .empty-text { color: #888; text-align: center; padding: 20px 0; }
+        .bank-info { font-size: 0.8rem; color: #666; margin-top: 4px; font-weight: normal; }
     </style>
 </head>
 <body>
 
-    <!-- 🔐 1. หน้าจอเข้าสู่ระบบสำหรับลูกค้า (Login Screen) -->
+    <!-- 🔐 1. หน้าจอเข้าสู่ระบบสำหรับลูกค้า -->
     <div id="login-section" class="card">
-        <h2>🔐 เข้าสู่ระบบ</h2>
-        <p style="color: #666; font-size: 0.9rem;">กรอกเบอร์โทรศัพท์และรหัสผ่านเข้าใช้งาน</p>
-        <input type="text" id="login-username" placeholder="หมายเลขโทรศัพท์ (Username)">
+        <h2>🔐 เข้าสู่ระบบลูกค้า</h2>
+        <p style="color: #666; font-size: 0.9rem;">กรุณากรอกข้อมูลเพื่อเข้าสู่กระเป๋าเงินของคุณ</p>
+        <input type="text" id="login-username" placeholder="หมายเลขโทรศัพท์">
         <input type="password" id="login-password" placeholder="รหัสผ่าน (Password)">
         <button onclick="loginUser()">🔓 เข้าสู่ระบบ</button>
     </div>
 
-    <!-- 📱 2. หน้าจอหลักกระเป๋าเงิน (แสดงหลังล็อกอินสำเร็จ) -->
+    <!-- 📱 2. หน้าจอหลักกระเป๋าเงิน -->
     <div id="wallet-section" class="card" style="display: none;">
-        <h2>📱 ID : <span id="display-name" style="color:#007bff;">-</span></h2>
+        <h2>📱 ยินดีต้อนรับ เบอร์โทร <span id="display-name" style="color:#007bff;">-</span></h2>
         <div class="balance-box">
             <div>ยอดเงินคงเหลือของคุณ</div>
             <div class="balance">฿ <span id="user-balance">0</span></div>
         </div>
         
-        <label for="withdraw-amount" style="display:block; text-align:left; margin-bottom:5px;">ระบุจำนวนเงินที่ต้องการถอน:</label>
-        <input type="number" id="withdraw-amount" placeholder="0.00">
+        <h3 style="text-align: left; margin: 15px 0 5px 0; color: #444; font-size: 1.1rem;">💸 แจ้งถอนเงิน</h3>
+        
+        <select id="withdraw-bank">
+            <option value="">-- เลือกธนาคาร --</option>
+            <option value="กสิกรไทย (KBANK)">กสิกรไทย (KBANK)</option>
+            <option value="ไทยพาณิชย์ (SCB)">ไทยพาณิชย์ (SCB)</option>
+            <option value="กรุงไทย (KTB)">กรุงไทย (KTB)</option>
+            <option value="กรุงเทพ (BBL)">กรุงเทพ (BBL)</option>
+            <option value="กรุงศรีอยุธยา (BAY)">กรุงศรีอยุธยา (BAY)</option>
+            <option value="ทหารไทยธนชาต (TTB)">ทหารไทยธนชาต (TTB)</option>
+            <option value="ออมสิน (GSB)">ออมสิน (GSB)</option>
+        </select>
+        
+        <input type="text" id="withdraw-account-num" placeholder="ระบุหมายเลขบัญชีธนาคาร">
+        <input type="number" id="withdraw-amount" placeholder="ระบุจำนวนเงินที่ต้องการถอน (บาท)">
+        
         <button onclick="requestWithdraw()">💸 ส่งคำขอถอนเงิน</button>
         <button onclick="logoutUser()" class="logout-btn">🔒 ออกจากระบบ</button>
     </div>
 
-    <!-- 📜 3. ตารางประวัติธุรกรรม (แสดงหลังล็อกอินสำเร็จ) -->
+    <!-- 📜 3. ตารางประวัติธุรกรรม -->
     <div id="history-section" class="history-card" style="display: none;">
         <div class="history-title">📜 ประวัติธุรกรรมย้อนหลัง</div>
         <table>
@@ -68,26 +83,20 @@
     </div>
 
     <script>
-        // ฟังก์ชันจัดการเข้าสู่ระบบของลูกค้า
         function loginUser() {
             let uName = document.getElementById('login-username').value.trim();
             let uPass = document.getElementById('login-password').value;
-            
             if(!uName || !uPass) return alert('กรุณากรอกข้อมูลให้ครบถ้วน');
-            
             let users = JSON.parse(localStorage.getItem('wallet_users')) || {};
-            
-            // ตรวจสอบชื่อและรหัสผ่านในระบบ
             if(users[uName] && users[uName].password === uPass) {
                 sessionStorage.setItem('current_wallet_user', uName);
                 alert('✅ เข้าสู่ระบบสำเร็จ!');
                 checkLoginStatus();
             } else {
-                alert('❌ ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง');
+                alert('❌ หมายเลขโทรศัพท์หรือรหัสผ่านไม่ถูกต้อง');
             }
         }
 
-        // ฟังก์ชันเช็คสถานะการล็อกอินตอนเปิดหน้าเว็บ
         function checkLoginStatus() {
             let currentUser = sessionStorage.getItem('current_wallet_user');
             if(currentUser) {
@@ -103,11 +112,9 @@
             }
         }
 
-        // ฟังก์ชันดึงยอดเงินและประวัติของยูสเซอร์ปัจจุบัน
         function fetchData() {
             let currentUser = sessionStorage.getItem('current_wallet_user');
             if(!currentUser) return;
-
             let users = JSON.parse(localStorage.getItem('wallet_users')) || {};
             let userData = users[currentUser] || { balance: 0, history: [] };
 
@@ -126,10 +133,13 @@
                     let row = document.createElement('tr');
                     let typeClass = item.type === 'ฝาก/เพิ่มเงิน' ? 'type-add' : 'type-withdraw';
                     let prefix = item.type === 'ฝาก/เพิ่มเงิน' ? '+' : '-';
+                    
+                    // แสดงข้อมูลบัญชีธนาคารเพิ่มเติมในแถวประวัติธุรกรรม
+                    let bankDetails = item.bank ? `<div class="bank-info">🏦 ${item.bank}<br>💳 เลขบัญชี: ${item.account}</div>` : '';
 
                     row.innerHTML = `
                         <td style="color: #666; font-size: 0.85rem;">${item.time}</td>
-                        <td class="${typeClass}">${item.type}</td>
+                        <td class="${typeClass}">${item.type} ${bankDetails}</td>
                         <td class="${typeClass}">${prefix}฿${parseFloat(item.amount).toLocaleString()}</td>
                     `;
                     tableBody.appendChild(row);
@@ -137,11 +147,15 @@
             }
         }
         
-        // ฟังก์ชันเมื่อลูกค้ากดถอนเงิน
         function requestWithdraw() {
             let currentUser = sessionStorage.getItem('current_wallet_user');
+            let bank = document.getElementById('withdraw-bank').value;
+            let accountNum = document.getElementById('withdraw-account-num').value.trim();
             let amount = parseFloat(document.getElementById('withdraw-amount').value);
-            if(!amount || amount <= 0) return alert('กรุณาระบุจำนวนเงิน');
+            
+            if(!bank) return alert('กรุณาเลือกธนาคารปลายทาง');
+            if(!accountNum) return alert('กรุณากรอกหมายเลขบัญชีธนาคาร');
+            if(!amount || amount <= 0) return alert('กรุณาระบุจำนวนเงินให้ถูกต้อง');
             
             let users = JSON.parse(localStorage.getItem('wallet_users')) || {};
             let userData = users[currentUser];
@@ -150,34 +164,27 @@
                 return alert('ยอดเงินของคุณไม่เพียงพอสำหรับการถอน');
             }
             
-            // หักเงิน
+            // ทำการหักเงิน
             userData.balance = parseFloat(userData.balance) - amount;
             
-            // บันทึกประวัติ
+            // บันทึกประวัติพร้อมรายละเอียดธนาคาร
             let now = new Date();
             let timeString = now.toLocaleDateString('th-TH') + ' ' + now.toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'});
             if(!userData.history) userData.history = [];
-            userData.history.push({ time: timeString, type: 'ถอนเงิน', amount: amount });
+            
+            userData.history.push({ 
+                time: timeString, 
+                type: 'ถอนเงิน', 
+                amount: amount,
+                bank: bank,
+                account: accountNum
+            });
             
             users[currentUser] = userData;
             localStorage.setItem('wallet_users', JSON.stringify(users));
             localStorage.setItem('wallet_update_trigger', Date.now().toString());
             
-            alert('ถอนเงินจำนวน ' + amount.toLocaleString() + ' บาทสำเร็จ!');
+            alert('🎉 ส่งคำขอถอนเงินจำนวน ' + amount.toLocaleString() + ' บาทสำเร็จ! ระบบกำลังดำเนินการโอนเข้าบัญชีของคุณ');
             fetchData();
-            document.getElementById('withdraw-amount').value = '';
-        }
-
-        function logoutUser() {
-            sessionStorage.removeItem('current_wallet_user');
-            checkLoginStatus();
-        }
-
-        checkLoginStatus();
-        window.addEventListener('storage', function(e) {
-            if (e.key === 'wallet_users' || e.key === 'wallet_update_trigger') fetchData();
-        });
-        setInterval(fetchData, 2000);
-    </script>
-</body>
-</html>
+            
+            // ล้างฟอร์มกรอกข้อมูล
