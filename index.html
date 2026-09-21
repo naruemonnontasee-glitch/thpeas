@@ -21,7 +21,7 @@
         <h2>📱 ยินดีต้อนรับ (ลูกค้า)</h2>
         <div class="balance-box">
             <div>ยอดเงินของคุณคงเหลือ</div>
-            <div class="balance">฿ <span id="user-balance">Loading...</span></div>
+            <div class="balance">฿ <span id="user-balance">5,000</span></div>
         </div>
         
         <label for="withdraw-amount" style="display:block; text-align:left; margin-bottom:5px;">ระบุจำนวนเงินที่ต้องการถอน:</label>
@@ -30,50 +30,45 @@
     </div>
 
     <script>
-        // ฟังก์ชันดึงยอดเงินจริงจากระบบหลังบ้าน
-        async function fetchBalance() {
-            try {
-                const res = await fetch('/api/db.js');
-                const data = await res.json();
-                
-                // ปรับปรุงการเช็คค่าข้อมูลที่ส่งมาจากหลังบ้านให้ดึงตัวเลขได้ตรงๆ
-                let currentMoney = 0;
-                if (data && data.balance !== undefined) {
-                    currentMoney = parseFloat(data.balance);
-                } else if (typeof data === 'number') {
-                    currentMoney = data;
-                } else if (data && typeof data === 'object') {
-                    currentMoney = parseFloat(Object.values(data)[0]) || 0;
-                }
-
-                document.getElementById('user-balance').innerText = currentMoney.toLocaleString();
-            } catch (e) {
-                document.getElementById('user-balance').innerText = "ข้อผิดพลาด";
+        // ฟังก์ชันดึงยอดเงินจากระบบบันทึกถาวร
+        function fetchBalance() {
+            let currentBalance = localStorage.getItem('wallet_balance');
+            if (currentBalance === null) {
+                // ถ้าเพิ่งเปิดเว็บครั้งแรก ให้เงินเริ่มต้นที่ 5,000 บาท
+                localStorage.setItem('wallet_balance', '5000');
+                currentBalance = '5000';
             }
+            document.getElementById('user-balance').innerText = parseFloat(currentBalance).toLocaleString();
         }
         
         // ฟังก์ชันส่งคำขอถอนเงิน
-        async function requestWithdraw() {
-            let amount = document.getElementById('withdraw-amount').value;
+        function requestWithdraw() {
+            let amount = parseFloat(document.getElementById('withdraw-amount').value);
             if(!amount || amount <= 0) return alert('กรุณาระบุจำนวนเงิน');
             
-            const res = await fetch('/api/db.js', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'withdraw', amount: amount })
-            });
-            const data = await res.json();
-            if(data.success) {
-                alert('ถอนเงินสำเร็จ ยอดเงินในระบบถูกหักแล้ว!');
-                fetchBalance();
-            } else {
-                alert('เกิดข้อผิดพลาด: ' + (data.error || 'กรุณาลองใหม่อีกครั้ง'));
+            let currentBalance = parseFloat(localStorage.getItem('wallet_balance')) || 0;
+            
+            if (amount > currentBalance) {
+                return alert('ยอดเงินของคุณไม่เพียงพอสำหรับการถอน');
             }
+            
+            let newBalance = currentBalance - amount;
+            localStorage.setItem('wallet_balance', newBalance.toString());
+            
+            alert('ถอนเงินจำนวน ' + amount.toLocaleString() + ' บาทสำเร็จ ยอดเงินในระบบถูกหักแล้ว!');
+            fetchBalance();
             document.getElementById('withdraw-amount').value = '';
         }
 
-        // เริ่มทำงานทันทีเมื่อเปิดหน้าจอ
+        // เช็คยอดเงินทันทีเมื่อโหลดหน้าเว็บ
         fetchBalance();
+        
+        // คอยอัปเดตยอดเงินแบบ Real-time ถ้าแอดมินกดเติมเงินจากอีกหน้าต่าง
+        window.addEventListener('storage', function(e) {
+            if (e.key === 'wallet_balance') {
+                fetchBalance();
+            }
+        });
     </script>
 </body>
 </html>
