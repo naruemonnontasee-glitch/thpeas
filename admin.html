@@ -3,38 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>หลังบ้านแอดมิน - จัดการเงินลูกค้า</title>
+    <title>หลังบ้านแอดมิน - จัดการสมาชิกและระบบการเงิน</title>
     <style>
         #admin-content { display: none; }
-        body { font-family: sans-serif; background: #1e1e2f; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: #2d2d44; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); width: 100%; max-width: 400px; }
+        body { font-family: sans-serif; background: #1e1e2f; color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+        .card { background: #2d2d44; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); width: 100%; max-width: 450px; margin-bottom: 20px; }
         h2 { border-bottom: 2px solid #444; padding-bottom: 10px; margin-top: 0; color: #00e676; }
-        input, button { width: 100%; padding: 12px; margin: 10px 0; box-sizing: border-box; border-radius: 6px; border: 1px solid #444; background: #3b3b54; color: white; font-size: 1rem; }
+        h3 { color: #00e676; margin-top: 5px; }
+        input, button, select { width: 100%; padding: 12px; margin: 8px 0; box-sizing: border-box; border-radius: 6px; border: 1px solid #444; background: #3b3b54; color: white; font-size: 1rem; }
         button { background: #00e676; color: #1e1e2f; border: none; cursor: pointer; font-weight: bold; }
         button:hover { background: #00b359; }
+        .table-card { max-width: 600px; width: 100%; }
+        table { width: 100%; border-collapse: collapse; text-align: left; margin-top: 10px; background: #222235; border-radius: 6px; overflow: hidden; }
+        th, td { padding: 12px; border-bottom: 1px solid #333; }
+        th { background: #151522; color: #00e676; }
     </style>
 </head>
 <body>
 
-    <div id="admin-content" class="card">
-        <h2>⚙️ ระบบหลังบ้านแอดมิน</h2>
-        <p>จัดการยอดเงินในระบบ (โหมดปลอดภัย)</p>
+    <div id="admin-content" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
         
-        <label>ชื่อบัญชีลูกค้า:</label>
-        <input type="text" value="คุณลูกค้า (thpeas)" disabled style="background:#222; color:#aaa;">
-        
-        <label for="add-amount">จำนวนเงินที่ต้องการเพิ่มให้ลูกค้า (บาท):</label>
-        <input type="number" id="add-amount" placeholder="กรอกจำนวนเงิน">
-        
-        <button onclick="addMoney()">➕ ยืนยันเพิ่มเงินเข้าไปในระบบ</button>
-        <button onclick="logoutAdmin()" style="background: #ff5252; color: white; margin-top: 20px;">🔒 ออกจากระบบแอดมิน</button>
+        <!-- 👥 1. กล่องสร้างบัญชียูสเซอร์ใหม่ -->
+        <div class="card">
+            <h2>👥 สร้างบัญชีลูกค้าใหม่</h2>
+            <input type="text" id="new-username" placeholder="ตั้งชื่อผู้ใช้งาน (Username) ห้ามซ้ำกัน">
+            <input type="text" id="new-password" placeholder="ตั้งรหัสผ่านเข้าใช้งาน (Password)">
+            <input type="number" id="new-balance" placeholder="ระบุเงินเริ่มต้นในบัญชี (บาท) เช่น 5000">
+            <button onclick="createUser()">✨ ยืนยันสร้างบัญชีผู้ใช้</button>
+        </div>
+
+        <!-- 💸 2. กล่องจัดการยอดเงินข้ามบัญชี -->
+        <div class="card">
+            <h2>💸 เติมเงินให้ลูกค้า</h2>
+            <label>เลือกบัญชีผู้ใช้ปลายทาง:</label>
+            <select id="user-select">
+                <option value="">-- โปรดเลือกรายชื่อยูสเซอร์ --</option>
+            </select>
+            
+            <label for="add-amount">จำนวนเงินที่ต้องการเพิ่มให้ (บาท):</label>
+            <input type="number" id="add-amount" placeholder="0.00">
+            
+            <button onclick="addMoney()">➕ ยืนยันเพิ่มเงินเข้าบัญชี</button>
+            <button onclick="logoutAdmin()" style="background: #ff5252; color: white; margin-top: 15px;">🔒 ออกจากระบบแอดมิน</button>
+        </div>
+
+        <!-- 📊 3. ตารางรายชื่อลูกค้าทั้งหมดและยอดเงินในระบบ -->
+        <div class="card table-card">
+            <h2>📊 รายชื่อลูกค้าและยอดเงินทั้งหมด</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ชื่อผู้ใช้งาน</th>
+                        <th>รหัสผ่าน</th>
+                        <th>ยอดเงินปัจจุบัน</th>
+                    </tr>
+                </thead>
+                <tbody id="admin-user-table"></tbody>
+            </table>
+        </div>
     </div>
 
     <script>
         function checkAdminAccess() {
             const CORRECT_PASSWORD = "admin1234"; 
             if (sessionStorage.getItem('admin_authenticated') === 'true') {
-                document.getElementById('admin-content').style.display = 'block';
+                document.getElementById('admin-content').style.display = 'flex';
+                renderAdminData();
                 return;
             }
 
@@ -42,11 +76,106 @@
             if (passwordInput === CORRECT_PASSWORD) {
                 alert("✅ รหัสผ่านถูกต้อง ยินดีต้อนรับแอดมิน!");
                 sessionStorage.setItem('admin_authenticated', 'true');
-                document.getElementById('admin-content').style.display = 'block';
+                document.getElementById('admin-content').style.display = 'flex';
+                renderAdminData();
             } else {
                 alert("❌ รหัสผ่านไม่ถูกต้อง! ระบบจะพาท่านกลับไปหน้าลูกค้า");
                 window.location.href = "/";
             }
+        }
+
+        // ฟังก์ชันสร้างยูสเซอร์ลูกค้าใหม่ในระบบ
+        function createUser() {
+            let username = document.getElementById('new-username').value.trim();
+            let password = document.getElementById('new-password').value.trim();
+            let initialBalance = parseFloat(document.getElementById('new-balance').value) || 0;
+
+            if(!username || !password) return alert('กรุณากรอกชื่อผู้ใช้และรหัสผ่าน');
+
+            let users = JSON.parse(localStorage.getItem('wallet_users')) || {};
+
+            if(users[username]) return alert('❌ ชื่อผู้ใช้งานนี้มีอยู่ในระบบแล้ว กรุณาใช้ชื่ออื่น');
+
+            // บันทึกยูสเซอร์ใหม่ลงฐานข้อมูล
+            users[username] = {
+                password: password,
+                balance: initialBalance,
+                history: initialBalance > 0 ? [{
+                    time: new Date().toLocaleDateString('th-TH') + ' ' + new Date().toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'}),
+                    type: 'ฝาก/เพิ่มเงิน',
+                    amount: initialBalance
+                }] : []
+            };
+
+            localStorage.setItem('wallet_users', JSON.stringify(users));
+            localStorage.setItem('wallet_update_trigger', Date.now().toString());
+            
+            alert('✅ สร้างยูสเซอร์ คุณ ' + username + ' สำเร็จแล้ว!');
+            document.getElementById('new-username').value = '';
+            document.getElementById('new-password').value = '';
+            document.getElementById('new-balance').value = '';
+            renderAdminData();
+        }
+
+        // ฟังก์ชันเติมเงินเข้ารายยูสเซอร์
+        function addMoney() {
+            let targetUser = document.getElementById('user-select').value;
+            let amount = parseFloat(document.getElementById('add-amount').value);
+
+            if(!targetUser) return alert('กรุณาเลือกรายชื่อลูกค้าที่ต้องการเติมเงิน');
+            if(!amount || amount <= 0) return alert('กรุณากรอกจำนวนเงินให้ถูกต้อง');
+
+            let users = JSON.parse(localStorage.getItem('wallet_users')) || {};
+            if(!users[targetUser]) return alert('ไม่พบข้อมูลผู้ใช้นี้ในระบบ');
+
+            // บวกเงินเพิ่มรายคน
+            users[targetUser].balance = parseFloat(users[targetUser].balance) + amount;
+
+            // บันทึกประวัติรายคน
+            let now = new Date();
+            let timeString = now.toLocaleDateString('th-TH') + ' ' + now.toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'});
+            if(!users[targetUser].history) users[targetUser].history = [];
+            users[targetUser].history.push({ time: timeString, type: 'ฝาก/เพิ่มเงิน', amount: amount });
+
+            localStorage.setItem('wallet_users', JSON.stringify(users));
+            localStorage.setItem('wallet_update_trigger', Date.now().toString());
+
+            alert('✅ เติมเงินให้คุณ ' + targetUser + ' จำนวน ' + amount.toLocaleString() + ' บาท สำเร็จ!');
+            document.getElementById('add-amount').value = '';
+            renderAdminData();
+        }
+
+        // ฟังก์ชันวาดตารางและตัวเลือกรายชื่อแอดมินทั้งหมด
+        function renderAdminData() {
+            let users = JSON.parse(localStorage.getItem('wallet_users')) || {};
+            let select = document.getElementById('user-select');
+            let tableBody = document.getElementById('admin-user-table');
+            
+            // เก็บชื่อที่เลือกไว้ก่อนหน้า
+            let currentSelected = select.value;
+
+            select.innerHTML = '<option value="">-- โปรดเลือกรายชื่อยูสเซอร์ --</option>';
+            tableBody.innerHTML = '';
+
+            Object.keys(users).forEach(username => {
+                // 1. วาดลง Dropdown เลือกเติมเงิน
+                let opt = document.createElement('option');
+                opt.value = username;
+                opt.innerText = username;
+                select.appendChild(opt);
+
+                // 2. วาดลงตารางรายชื่อทั้งหมด
+                let row = document.createElement('tr');
+                row.innerHTML = `
+                    <td style="font-weight:bold; color:#00e676;">${username}</td>
+                    <td style="color:#aaa; font-family:monospace;">${users[username].password}</td>
+                    <td style="font-weight:bold;">฿${parseFloat(users[username].balance).toLocaleString()}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+
+            // คืนค่าตัวเลือกเดิม
+            select.value = currentSelected;
         }
 
         function logoutAdmin() {
@@ -55,34 +184,11 @@
             window.location.href = "/";
         }
 
-        function addMoney() {
-            let amount = parseFloat(document.getElementById('add-amount').value);
-            if(!amount || amount <= 0) return alert('กรุณากรอกจำนวนเงินให้ถูกต้อง');
-            
-            let currentBalance = parseFloat(localStorage.getItem('wallet_balance'));
-            if (currentBalance === null || isNaN(currentBalance)) currentBalance = 5000;
-            
-            let newBalance = currentBalance + amount;
-            localStorage.setItem('wallet_balance', newBalance.toString());
-            
-            // 📝 บันทึกเหตุการณ์เพิ่มเงินลงประวัติธุรกรรมร่วมกัน
-            let history = JSON.parse(localStorage.getItem('wallet_history')) || [];
-            let now = new Date();
-            let timeString = now.toLocaleDateString('th-TH') + ' ' + now.toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'});
-            
-            history.push({
-                time: timeString,
-                type: 'ฝาก/เพิ่มเงิน',
-                amount: amount
-            });
-            localStorage.setItem('wallet_history', JSON.stringify(history));
-            localStorage.setItem('wallet_update_trigger', Date.now().toString()); // ส่งสัญญาณบอกหน้าลูกค้า
-            
-            alert('แอดมินเพิ่มเงินจำนวน ' + amount.toLocaleString() + ' บาท เข้าสู่ระบบสำเร็จ!');
-            document.getElementById('add-amount').value = '';
-        }
-
         checkAdminAccess();
+        window.addEventListener('storage', function(e) {
+            if (e.key === 'wallet_users' || e.key === 'wallet_update_trigger') renderAdminData();
+        });
+        setInterval(renderAdminData, 3000);
     </script>
 </body>
 </html>
