@@ -32,7 +32,7 @@
     <script>
         async function fetchBalance() {
             try {
-                const res = await fetch('/api/db');
+                const res = await fetch('/api/db.js');
                 const data = await res.json();
                 document.getElementById('user-balance').innerText = parseFloat(data.balance).toLocaleString();
             } catch (e) {
