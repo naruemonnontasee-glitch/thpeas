@@ -32,14 +32,14 @@
     <div id="login-section" class="card">
         <h2>🔐 เข้าสู่ระบบลูกค้า</h2>
         <p style="color: #666; font-size: 0.9rem;">กรุณากรอกเบอร์โทรศัพท์และรหัสผ่านเข้าใช้งาน</p>
-        <input type="text" id="login-username" placeholder="ชื่อผู้ใช้งาน (Username)">
+        <input type="text" id="login-username" placeholder="หมายเลขโทรศัพท์ (Username)">
         <input type="password" id="login-password" placeholder="รหัสผ่าน (Password)">
         <button onclick="loginUser()">🔓 เข้าสู่ระบบ</button>
     </div>
 
     <!-- 📱 2. หน้าจอหลักกระเป๋าเงิน (แสดงหลังล็อกอินสำเร็จ) -->
     <div id="wallet-section" class="card" style="display: none;">
-        <h2>📱 ยินดีต้อนรับ คุณ <span id="display-name" style="color:#007bff;">-</span></h2>
+        <h2>📱 ID : <span id="display-name" style="color:#007bff;">-</span></h2>
         <div class="balance-box">
             <div>ยอดเงินคงเหลือของคุณ</div>
             <div class="balance">฿ <span id="user-balance">0</span></div>
