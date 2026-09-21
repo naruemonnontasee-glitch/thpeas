@@ -30,21 +30,34 @@
     </div>
 
     <script>
+        // ฟังก์ชันดึงยอดเงินจริงจากระบบหลังบ้าน
         async function fetchBalance() {
             try {
                 const res = await fetch('/api/db.js');
                 const data = await res.json();
-                document.getElementById('user-balance').innerText = parseFloat(data.balance).toLocaleString();
+                
+                // ปรับปรุงการเช็คค่าข้อมูลที่ส่งมาจากหลังบ้านให้ดึงตัวเลขได้ตรงๆ
+                let currentMoney = 0;
+                if (data && data.balance !== undefined) {
+                    currentMoney = parseFloat(data.balance);
+                } else if (typeof data === 'number') {
+                    currentMoney = data;
+                } else if (data && typeof data === 'object') {
+                    currentMoney = parseFloat(Object.values(data)[0]) || 0;
+                }
+
+                document.getElementById('user-balance').innerText = currentMoney.toLocaleString();
             } catch (e) {
                 document.getElementById('user-balance').innerText = "ข้อผิดพลาด";
             }
         }
         
+        // ฟังก์ชันส่งคำขอถอนเงิน
         async function requestWithdraw() {
             let amount = document.getElementById('withdraw-amount').value;
             if(!amount || amount <= 0) return alert('กรุณาระบุจำนวนเงิน');
             
-            const res = await fetch('/api/db', {
+            const res = await fetch('/api/db.js', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'withdraw', amount: amount })
@@ -53,12 +66,14 @@
             if(data.success) {
                 alert('ถอนเงินสำเร็จ ยอดเงินในระบบถูกหักแล้ว!');
                 fetchBalance();
+            } else {
+                alert('เกิดข้อผิดพลาด: ' + (data.error || 'กรุณาลองใหม่อีกครั้ง'));
             }
             document.getElementById('withdraw-amount').value = '';
         }
 
+        // เริ่มทำงานทันทีเมื่อเปิดหน้าจอ
         fetchBalance();
     </script>
 </body>
 </html>
- 
