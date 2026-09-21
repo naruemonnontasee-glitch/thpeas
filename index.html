@@ -16,7 +16,7 @@
         .logout-btn { background: #777; margin-top: 15px; }
         .logout-btn:hover { background: #555; }
         
-        .history-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 600px; }
+        .history-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 650px; }
         .history-title { font-size: 1.2rem; font-weight: bold; color: #444; margin-bottom: 15px; text-align: left; border-left: 4px solid #007bff; padding-left: 10px; }
         table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.95rem; }
         th, td { padding: 12px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
@@ -134,7 +134,6 @@
                     let typeClass = item.type === 'ฝาก/เพิ่มเงิน' ? 'type-add' : 'type-withdraw';
                     let prefix = item.type === 'ฝาก/เพิ่มเงิน' ? '+' : '-';
                     
-                    // แสดงข้อมูลบัญชีธนาคารเพิ่มเติมในแถวประวัติธุรกรรม
                     let bankDetails = item.bank ? `<div class="bank-info">🏦 ${item.bank}<br>💳 เลขบัญชี: ${item.account}</div>` : '';
 
                     row.innerHTML = `
@@ -164,10 +163,8 @@
                 return alert('ยอดเงินของคุณไม่เพียงพอสำหรับการถอน');
             }
             
-            // ทำการหักเงิน
             userData.balance = parseFloat(userData.balance) - amount;
             
-            // บันทึกประวัติพร้อมรายละเอียดธนาคาร
             let now = new Date();
             let timeString = now.toLocaleDateString('th-TH') + ' ' + now.toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'});
             if(!userData.history) userData.history = [];
@@ -187,4 +184,27 @@
             alert('🎉 ส่งคำขอถอนเงินจำนวน ' + amount.toLocaleString() + ' บาทสำเร็จ! ระบบกำลังดำเนินการโอนเข้าบัญชีของคุณ');
             fetchData();
             
-            // ล้างฟอร์มกรอกข้อมูล
+            document.getElementById('withdraw-bank').value = '';
+            document.getElementById('withdraw-account-num').value = '';
+            document.getElementById('withdraw-amount').value = '';
+  } // วงเล็บปีกกาปิดฟังก์ชัน requestWithdraw
+
+    // 🔒 ปุ่มกดสำหรับให้ลูกค้าออกจากระบบ
+    function logoutUser() {
+        sessionStorage.removeItem('current_wallet_user');
+        checkLoginStatus();
+    }
+
+    // เริ่มทำงานระบบต่างๆ ทันทีเมื่อเปิดหน้าจอ
+    checkLoginStatus();
+    
+    // ดักรับสัญญาณการอัปเดตเงินข้ามหน้าจอแบบ Real-time
+    window.addEventListener('storage', function(e) {
+        if (e.key === 'wallet_users' || e.key === 'wallet_update_trigger') fetchData();
+    });
+    
+    // อัปเดตเงินอัตโนมัติทุกๆ 2 วินาทีเพื่อความชัวร์
+    setInterval(fetchData, 2000);
+</script>
+</body>
+</html>
