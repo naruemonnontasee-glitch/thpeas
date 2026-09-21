@@ -26,16 +26,16 @@
         <!-- 👥 1. กล่องสร้างบัญชียูสเซอร์ใหม่ -->
         <div class="card">
             <h2>👥 สร้างบัญชีลูกค้าใหม่</h2>
-            <input type="text" id="new-username" placeholder="ตั้งชื่อผู้ใช้งาน (Username) ห้ามซ้ำกัน">
+            <input type="text" id="new-username" placeholder="กรอกหมายเลขโทรศัพท์ลูกค้า">
             <input type="text" id="new-password" placeholder="ตั้งรหัสผ่านเข้าใช้งาน (Password)">
-            <input type="number" id="new-balance" placeholder="ระบุเงินเริ่มต้นในบัญชี (บาท) เช่น 5000">
+            <input type="number" id="new-balance" placeholder="ระบุเงินเริ่มต้นในบัญชี (บาท) เช่น 1000">
             <button onclick="createUser()">✨ ยืนยันสร้างบัญชีผู้ใช้</button>
         </div>
 
         <!-- 💸 2. กล่องจัดการยอดเงินข้ามบัญชี -->
         <div class="card">
             <h2>💸 เติมเงินให้ลูกค้า</h2>
-            <label>เลือกบัญชีผู้ใช้ปลายทาง:</label>
+            <label>เลือกหมายเลขโทรศัพท์ลูกค้า:</label>
             <select id="user-select">
                 <option value="">-- โปรดเลือกรายชื่อยูสเซอร์ --</option>
             </select>
@@ -53,7 +53,7 @@
             <table>
                 <thead>
                     <tr>
-                        <th>ชื่อผู้ใช้งาน</th>
+                        <th>หมายเลขโทรศัพท์</th>
                         <th>รหัสผ่าน</th>
                         <th>ยอดเงินปัจจุบัน</th>
                     </tr>
