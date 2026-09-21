@@ -29,21 +29,19 @@
     </div>
 
     <script>
-        async function addMoney() {
-            let amount = document.getElementById('add-amount').value;
+        function addMoney() {
+            let amount = parseFloat(document.getElementById('add-amount').value);
             if(!amount || amount <= 0) return alert('กรุณากรอกจำนวนเงินให้ถูกต้อง');
             
-            const res = await fetch('/api/db.js', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'add', amount: amount })
-            });
-            const data = await res.json();
-            if(data.success) {
-                alert('แอดมินเพิ่มเงินจำนวน ' + amount + ' บาท เข้าสู่ฐานข้อมูลถาวรสำเร็จ!');
-            } else {
-                alert('เกิดข้อผิดพลาดในการเชื่อมต่อฐานข้อมูล');
-            }
+            // ดึงเงินเดิมที่มีอยู่
+            let currentBalance = parseFloat(localStorage.getItem('wallet_balance'));
+            if (currentBalance === null) currentBalance = 5000;
+            
+            // คำนวณเงินใหม่และบันทึกลงระบบถาวร
+            let newBalance = currentBalance + amount;
+            localStorage.setItem('wallet_balance', newBalance.toString());
+            
+            alert('แอดมินเพิ่มเงินจำนวน ' + amount.toLocaleString() + ' บาท เข้าสู่ระบบสำเร็จ!');
             document.getElementById('add-amount').value = '';
         }
     </script>
