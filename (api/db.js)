@@ -6,7 +6,7 @@ export default async function handler(req, res) {
     // 1. สร้างตารางถ้ายังไม่มี
     await client.sql`CREATE TABLE IF NOT EXISTS wallet (id SERIAL PRIMARY KEY, balance NUMERIC DEFAULT 0);`;
     
-    // 2. เช็คว่ามีแถวที่ id = 1 หรือยัง ถ้ายังไม่มีให้สร้างเริ่มต้นที่ 5000 บาท
+    // 2. ตรวจสอบบัญชีไอดีที่ 1 ถ้ายังไม่มีให้สร้างเริ่มต้นที่ 5000 บาท
     const check = await client.sql`SELECT * FROM wallet WHERE id = 1;`;
     if (check.rowCount === 0) {
       await client.sql`INSERT INTO wallet (id, balance) VALUES (1, 5000);`;
@@ -15,7 +15,7 @@ export default async function handler(req, res) {
     // 3. จัดการกรณีดึงยอดเงิน (GET)
     if (req.method === 'GET') {
       const result = await client.sql`SELECT balance FROM wallet WHERE id = 1;`;
-      // ปรับแก้ให้ดึงค่าแถวแรกสุด (.rows[0]) ป้องกันการเกิดข้อผิดพลาด
+      // แก้ไขจุดนี้: ระบุตำแหน่ง [0] เพื่อดึงข้อมูลแถวแรกออกมาให้ถูกต้อง
       const currentBalance = result.rows[0] ? result.rows[0].balance : 0;
       return res.status(200).json({ balance: currentBalance });
     } 
@@ -32,7 +32,6 @@ export default async function handler(req, res) {
       if (action === 'add') {
         await client.sql`UPDATE wallet SET balance = balance + ${numAmount} WHERE id = 1;`;
       } else if (action === 'withdraw') {
-        // เช็คยอดเงินก่อนหัก
         const checkCurrent = await client.sql`SELECT balance FROM wallet WHERE id = 1;`;
         const currentBal = parseFloat(checkCurrent.rows[0].balance);
         if (numAmount > currentBal) {
@@ -50,7 +49,6 @@ export default async function handler(req, res) {
   } catch (error) {
     return res.status(500).json({ error: error.message });
   } finally {
-    // ปิดการเชื่อมต่อฐานข้อมูลเสมอเพื่อความปลอดภัย
     client.release();
   }
 }
