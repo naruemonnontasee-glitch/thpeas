@@ -1,26 +1,37 @@
 import { db } from '@vercel/postgres';
 
 export default async function handler(req, res) {
+  // บังคับให้เซิร์ฟเวอร์เปิดใช้งาน Cors
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   const client = await db.connect();
   try {
-    // 1. สร้างตารางถ้ายังไม่มี
+    // 1. สร้างตารางเริ่มต้นหากระบบยังไม่มี
     await client.sql`CREATE TABLE IF NOT EXISTS wallet (id SERIAL PRIMARY KEY, balance NUMERIC DEFAULT 0);`;
     
-    // 2. ตรวจสอบบัญชีไอดีที่ 1 ถ้ายังไม่มีให้สร้างเริ่มต้นที่ 5000 บาท
+    // 2. ป้อนกระเป๋าเงินจำลองไอดีที่ 1 ถ้าเป็นตารางว่างเปล่า
     const check = await client.sql`SELECT * FROM wallet WHERE id = 1;`;
     if (check.rowCount === 0) {
       await client.sql`INSERT INTO wallet (id, balance) VALUES (1, 5000);`;
     }
     
-    // 3. จัดการกรณีดึงยอดเงิน (GET)
+    // 3. หน้าลูกค้าดึงยอดเงิน (GET)
     if (req.method === 'GET') {
       const result = await client.sql`SELECT balance FROM wallet WHERE id = 1;`;
-      // แก้ไขจุดนี้: ระบุตำแหน่ง [0] เพื่อดึงข้อมูลแถวแรกออกมาให้ถูกต้อง
-      const currentBalance = result.rows[0] ? result.rows[0].balance : 0;
+      
+      // ดึงค่าแถวแรก [0] ของ Vercel Postgres ออกมาตรงๆ
+      const currentBalance = result.rows && result.rows.length > 0 ? result.rows[0].balance : 0;
+      
       return res.status(200).json({ balance: currentBalance });
     } 
     
-    // 4. จัดการกรณีเพิ่ม/ลดเงิน (POST)
+    // 4. แอดมินเพิ่มเงิน หรือ ลูกค้าถอนเงิน (POST)
     if (req.method === 'POST') {
       const { action, amount } = req.body;
       const numAmount = parseFloat(amount);
@@ -35,13 +46,13 @@ export default async function handler(req, res) {
         const checkCurrent = await client.sql`SELECT balance FROM wallet WHERE id = 1;`;
         const currentBal = parseFloat(checkCurrent.rows[0].balance);
         if (numAmount > currentBal) {
-          return res.status(400).json({ error: 'ยอดเงินไม่เพียงพอ' });
+          return res.status(400).json({ error: 'ยอดเงินไม่เพียงพอสำหรับการถอน' });
         }
         await client.sql`UPDATE wallet SET balance = balance - ${numAmount} WHERE id = 1;`;
       }
       
       const result = await client.sql`SELECT balance FROM wallet WHERE id = 1;`;
-      const updatedBalance = result.rows[0] ? result.rows[0].balance : 0;
+      const updatedBalance = result.rows && result.rows.length > 0 ? result.rows[0].balance : 0;
       return res.status(200).json({ success: true, balance: updatedBalance });
     }
     
@@ -49,6 +60,7 @@ export default async function handler(req, res) {
   } catch (error) {
     return res.status(500).json({ error: error.message });
   } finally {
+    // ส่งคืน Connection เสมอ
     client.release();
   }
 }
