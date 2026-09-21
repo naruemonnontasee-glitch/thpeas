@@ -5,9 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>หลังบ้านแอดมิน - จัดการเงินลูกค้า</title>
     <style>
-        /* ซ่อนเนื้อหาหน้าจอไว้ก่อนจนกว่าจะใส่รหัสผ่านถูก เพื่อความปลอดภัย */
         #admin-content { display: none; }
-        
         body { font-family: sans-serif; background: #1e1e2f; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
         .card { background: #2d2d44; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); width: 100%; max-width: 400px; }
         h2 { border-bottom: 2px solid #444; padding-bottom: 10px; margin-top: 0; color: #00e676; }
@@ -18,7 +16,6 @@
 </head>
 <body>
 
-    <!-- กล่องควบคุมที่จะแสดงผลเมื่อรหัสผ่านถูกต้องเท่านั้น -->
     <div id="admin-content" class="card">
         <h2>⚙️ ระบบหลังบ้านแอดมิน</h2>
         <p>จัดการยอดเงินในระบบ (โหมดปลอดภัย)</p>
@@ -34,31 +31,24 @@
     </div>
 
     <script>
-        // 🔒 ฟังก์ชันตรวจสอบรหัสผ่านทันทีเมื่อเปิดหน้าจอ
         function checkAdminAccess() {
-            // คุณสามารถเปลี่ยนรหัสผ่านจาก 'admin1234' เป็นคำอื่นที่คุณต้องการได้ตรงนี้ครับ
             const CORRECT_PASSWORD = "admin1234"; 
-            
-            // ตรวจสอบว่าเคยล็อกอินค้างไว้ในเซสชันนี้ไหม (ไม่ต้องกรอกซ้ำถ้ายังไม่ปิดแท็บ)
             if (sessionStorage.getItem('admin_authenticated') === 'true') {
                 document.getElementById('admin-content').style.display = 'block';
                 return;
             }
 
-            // ถ้ายังไม่เคยล็อกอิน ให้เด้งกล่องถามรหัสผ่านทันที
             let passwordInput = prompt("🔒 กรุณากรอกรหัสผ่านเพื่อเข้าสู่ระบบหลังบ้านแอดมิน:");
-            
             if (passwordInput === CORRECT_PASSWORD) {
                 alert("✅ รหัสผ่านถูกต้อง ยินดีต้อนรับแอดมิน!");
                 sessionStorage.setItem('admin_authenticated', 'true');
                 document.getElementById('admin-content').style.display = 'block';
             } else {
                 alert("❌ รหัสผ่านไม่ถูกต้อง! ระบบจะพาท่านกลับไปหน้าลูกค้า");
-                window.location.href = "/"; // ดีดกลับหน้าแรกลูกค้าทันที
+                window.location.href = "/";
             }
         }
 
-        // ปุ่มกดออกจากระบบแอดมินล้างข้อมูลความปลอดภัย
         function logoutAdmin() {
             sessionStorage.removeItem('admin_authenticated');
             alert("🔒 ออกจากระบบแอดมินเรียบร้อยแล้ว");
@@ -73,15 +63,25 @@
             if (currentBalance === null || isNaN(currentBalance)) currentBalance = 5000;
             
             let newBalance = currentBalance + amount;
-            
             localStorage.setItem('wallet_balance', newBalance.toString());
-            localStorage.setItem('wallet_update_trigger', Date.now().toString());
+            
+            // 📝 บันทึกเหตุการณ์เพิ่มเงินลงประวัติธุรกรรมร่วมกัน
+            let history = JSON.parse(localStorage.getItem('wallet_history')) || [];
+            let now = new Date();
+            let timeString = now.toLocaleDateString('th-TH') + ' ' + now.toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'});
+            
+            history.push({
+                time: timeString,
+                type: 'ฝาก/เพิ่มเงิน',
+                amount: amount
+            });
+            localStorage.setItem('wallet_history', JSON.stringify(history));
+            localStorage.setItem('wallet_update_trigger', Date.now().toString()); // ส่งสัญญาณบอกหน้าลูกค้า
             
             alert('แอดมินเพิ่มเงินจำนวน ' + amount.toLocaleString() + ' บาท เข้าสู่ระบบสำเร็จ!');
             document.getElementById('add-amount').value = '';
         }
 
-        // รันฟังก์ชันเช็ครหัสผ่านทันทีเมื่อเริ่มโหลดไฟล์หน้าจอ
         checkAdminAccess();
     </script>
 </body>
