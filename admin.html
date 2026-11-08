@@ -1,105 +1,97 @@
-<!-- อัปเดตเฉพาะส่วน <script> ของ admin.html -->
+<!-- ค้นหาจุดที่เป็นตารางเดิมในไฟล์ admin.html แล้วเพิ่มกล่องใหม่นี้ไว้ด้านบนหรือด้านล่างตารางเดิม -->
+<div class="card table-card" style="max-width: 800px;">
+    <h2>⏳ รายการถอนเงินที่รอแอดมินอนุมัติ</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>เบอร์ลูกค้า</th>
+                <th>รายละเอียดธนาคาร</th>
+                <th>จำนวนเงิน</th>
+                <th>การจัดการ</th>
+            </tr>
+        </thead>
+        <tbody id="admin-pending-table">
+            <tr><td colspan="4" style="text-align:center;">กำลังโหลดรายการรออนุมัติ...</td></tr>
+        </tbody>
+    </table>
+</div>
+
 <script>
     const API_URL = '/api/db';
 
-    function checkAdminAccess() {
-        const CORRECT_PASSWORD = "admin1234"; 
-        if (sessionStorage.getItem('admin_authenticated') === 'true') {
-            document.getElementById('admin-content').style.display = 'flex';
-            renderAdminData();
-            return;
-        }
-        let passwordInput = prompt("🔒 กรุณากรอกรหัสผ่านเพื่อเข้าสู่ระบบหลังบ้านแอดมิน:");
-        if (passwordInput === CORRECT_PASSWORD) {
-            alert("✅ รหัสผ่านถูกต้อง ยินดีต้อนรับแอดมิน!");
-            sessionStorage.setItem('admin_authenticated', 'true');
-            document.getElementById('admin-content').style.display = 'flex';
-            renderAdminData();
-        } else {
-            alert("❌ รหัสผ่านไม่ถูกต้อง!");
-            window.location.href = "/";
-        }
-    }
-
-    async function createUser() {
-        let username = document.getElementById('new-username').value.trim();
-        let password = document.getElementById('new-password').value.trim();
-        let initialBalance = parseFloat(document.getElementById('new-balance').value) || 0;
-
-        if(!username || !password) return alert('กรุณากรอกชื่อผู้ใช้และรหัสผ่าน');
+    // เพิ่มเติมฟังก์ชันยิง API อนุมัติการโอน
+    async function processWithdraw(username, txId, statusAction) {
+        const confirmMsg = statusAction === 'approve_withdraw' ? 'ยืนยันโอนเงินและอนุมัติรายการนี้ใช่หรือไม่?' : 'ยืนยันปฏิเสธรายการนี้ใช่หรือไม่?';
+        if(!confirm(confirmMsg)) return;
 
         const res = await fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'create_user', id: username, password, initial_balance: initialBalance })
+            body: JSON.stringify({ action: statusAction, id: username, tx_id: txId })
         });
         const data = await res.json();
-        if(data.error) return alert('❌ ' + data.error);
+        if(data.error) return alert('❌ ข้อผิดพลาด: ' + data.error);
 
-        alert('✅ สร้างยูสเซอร์สำเร็จแล้ว!');
-        document.getElementById('new-username').value = '';
-        document.getElementById('new-password').value = '';
-        document.getElementById('new-balance').value = '';
-        renderAdminData();
+        alert('✅ ดำเนินการอัปเดตสถานะสำเร็จ!');
+        renderAdminData(); // โหลดตารางใหม่ทั้งหมด
     }
 
-    async function addMoney() {
-        let targetUser = document.getElementById('user-select').value;
-        let amount = parseFloat(document.getElementById('add-amount').value);
-
-        if(!targetUser) return alert('กรุณาเลือกรายชื่อลูกค้า');
-        if(!amount || amount <= 0) return alert('กรุณากรอกจำนวนเงินให้ถูกต้อง');
-
-        const res = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'add', id: targetUser, amount })
-        });
-        const data = await res.json();
-        if(data.error) return alert('❌ ' + data.error);
-
-        alert('✅ เติมเงินสำเร็จ!');
-        document.getElementById('add-amount').value = '';
-        renderAdminData();
-    }
-
+    // อัปเดตฟังก์ชันดึงข้อมูลเดิมให้ทำงานดึงรายการ Pending เพิ่มขึ้นมารวมด้วย
     async function renderAdminData() {
         const select = document.getElementById('user-select');
         const tableBody = document.getElementById('admin-user-table');
+        const pendingTableBody = document.getElementById('admin-pending-table');
         let currentSelected = select.value;
 
         select.innerHTML = '<option value="">-- โปรดเลือกรายชื่อยูสเซอร์ --</option>';
-        tableBody.innerHTML = '<tr><td colspan="3" style="text-align:center;">กำลังโหลดข้อมูล...</td></tr>';
+        tableBody.innerHTML = '';
+        pendingTableBody.innerHTML = '';
 
         try {
             const res = await fetch(`${API_URL}?is_admin=true`);
             const users = await res.json();
-            tableBody.innerHTML = '';
+            
+            let hasPending = false;
 
             users.forEach(user => {
+                // วาดตัวเลือกใน Select
                 let opt = document.createElement('option');
                 opt.value = user.id;
                 opt.innerText = user.id;
                 select.appendChild(opt);
 
+                // วาดตารางรายชื่อลูกค้าปกติ
                 let row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${user.id}</td>
-                    <td>${user.password}</td>
-                    <td>฿${parseFloat(user.balance).toLocaleString()}</td>
-                `;
+                row.innerHTML = `<td>${user.id}</td><td>${user.password}</td><td>฿${parseFloat(user.balance).toLocaleString()}</td>`;
                 tableBody.appendChild(row);
+
+                // ตรวจหาประวัติธุรกรรมเพื่อเอามาวาดในตารางรออนุมัติแอดมิน
+                let history = JSON.parse(user.history || '[]');
+                history.forEach(tx => {
+                    if(tx.status === 'รออนุมัติ') {
+                        hasPending = true;
+                        let pRow = document.createElement('tr');
+                        pRow.innerHTML = `
+                            <td><b>${user.id}</b><br><small style="color:#aaa;">${tx.time}</small></td>
+                            <td>🏦 ${tx.bank}<br>💳 เลขบัญชี: ${tx.account}</td>
+                            <td style="color:#ffb300; font-weight:bold;">฿${parseFloat(tx.amount).toLocaleString()}</td>
+                            <td>
+                                <button onclick="processWithdraw('${user.id}', '${tx.tx_id}', 'approve_withdraw')" style="background:#00e676; color:#121212; padding:6px 10px; font-size:0.85rem; width:auto; margin:2px; display:inline-block;">✔️ อนุมัติ</button>
+                                <button onclick="processWithdraw('${user.id}', '${tx.tx_id}', 'reject_withdraw')" style="background:#ff5252; color:white; padding:6px 10px; font-size:0.85rem; width:auto; margin:2px; display:inline-block;">❌ ปฏิเสธ</button>
+                            </td>
+                        `;
+                        pendingTableBody.appendChild(pRow);
+                    }
+                });
             });
+
+            if(!hasPending) {
+                pendingTableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#888;">🎉 ไม่มีรายการค้างรออนุมัติในระบบ</td></tr>';
+            }
             if (currentSelected) select.value = currentSelected;
         } catch (e) {
-            tableBody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:red;">โหลดข้อมูลล้มเหลว</td></tr>';
+            console.error(e);
         }
     }
-
-    function logoutAdmin() {
-        sessionStorage.removeItem('admin_authenticated');
-        window.location.href = "/";
-    }
-
-    checkAdminAccess();
+    // ตัวโค้ดส่วน createUser/addMoney คงเดิมจากรอบก่อนได้เลย
 </script>
