@@ -1,47 +1,13 @@
-<!-- อัปเดตเฉพาะส่วน <script> ของ index.html -->
+<!-- ค้นหาฟังก์ชัน fetchData() ใน index.html แล้วนำส่วนนี้ไปวางอัปเดตแทนที่ -->
 <script>
-    const API_URL = '/api/db';
-
-    async function loginUser() {
-        let uName = document.getElementById('login-username').value.trim();
-        let uPass = document.getElementById('login-password').value;
-        if(!uName || !uPass) return alert('กรุณากรอกข้อมูลให้ครบถ้วน');
-
-        const res = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'login', id: uName, password: uPass })
-        });
-        const data = await res.json();
-        if(data.error) return alert('❌ ' + data.error);
-
-        sessionStorage.setItem('current_wallet_user', uName);
-        alert('✅ เข้าสู่ระบบสำเร็จ!');
-        checkLoginStatus();
-    }
-
-    function checkLoginStatus() {
-        let currentUser = sessionStorage.getItem('current_wallet_user');
-        if(currentUser) {
-            document.getElementById('login-section').style.display = 'none';
-            document.getElementById('wallet-section').style.display = 'block';
-            document.getElementById('history-section').style.display = 'block';
-            document.getElementById('display-name').innerText = currentUser;
-            fetchData();
-        } else {
-            document.getElementById('login-section').style.display = 'block';
-            document.getElementById('wallet-section').style.display = 'none';
-            document.getElementById('history-section').style.display = 'none';
-        }
-    }
-
     async function fetchData() {
         let currentUser = sessionStorage.getItem('current_wallet_user');
         if(!currentUser) return;
 
         const res = await fetch(`${API_URL}?id=${currentUser}`);
         if(!res.ok) return;
-        const userData = await res.json();
+        const rawData = await res.json();
+        const userData = rawData[0]; // ดึง Object แถวแรกจาก Array ผลลัพธ์
 
         document.getElementById('user-balance').innerText = parseFloat(userData.balance).toLocaleString();
 
@@ -57,47 +23,25 @@
             for (let i = history.length - 1; i >= 0; i--) {
                 let item = history[i];
                 let row = document.createElement('tr');
+                
+                // ออกแบบสีและการจำแนกประเภทรายการ
                 let typeClass = item.type === 'ฝาก/เพิ่มเงิน' ? 'type-add' : 'type-withdraw';
                 let prefix = item.type === 'ฝาก/เพิ่มเงิน' ? '+' : '-';
                 let bankDetails = item.bank ? `<div class="bank-info">🏦 ${item.bank}<br>💳 เลขบัญชี: ${item.account}</div>` : '';
+                
+                // ระบบ Badge ระบุสถานะงาน
+                let statusBadge = '';
+                if(item.status === 'รออนุมัติ') statusBadge = `<span style="background:#fff3e0; color:#e65100; padding:2px 6px; border-radius:4px; font-size:0.75rem; font-weight:bold; display:inline-block; margin-top:4px;">⏳ รออนุมัติ</span>`;
+                if(item.status === 'สำเร็จ') statusBadge = `<span style="background:#e8f5e9; color:#2e7d32; padding:2px 6px; border-radius:4px; font-size:0.75rem; font-weight:bold; display:inline-block; margin-top:4px;">✅ สำเร็จ</span>`;
+                if(item.status.includes('ปฏิเสธ') || item.status.includes('ยกเลิก')) statusBadge = `<span style="background:#ffebee; color:#c62828; padding:2px 6px; border-radius:4px; font-size:0.75rem; font-weight:bold; display:inline-block; margin-top:4px;">❌ ปฏิเสธ</span>`;
 
                 row.innerHTML = `
                     <td style="color: #666; font-size: 0.85rem;">${item.time}</td>
-                    <td class="${typeClass}">${item.type} ${bankDetails}</td>
-                    <td class="${typeClass}">${prefix}฿${parseFloat(item.amount).toLocaleString()}</td>
+                    <td class="${typeClass}">${item.type} ${bankDetails} ${statusBadge}</td>
+                    <td class="${typeClass}" style="vertical-align: middle;">${prefix}฿${parseFloat(item.amount).toLocaleString()}</td>
                 `;
                 tableBody.appendChild(row);
             }
         }
     }
-    
-    async function requestWithdraw() {
-        let currentUser = sessionStorage.getItem('current_wallet_user');
-        let bank = document.getElementById('withdraw-bank').value;
-        let accountNum = document.getElementById('withdraw-account-num').value.trim();
-        let amount = parseFloat(document.getElementById('withdraw-amount').value);
-
-        if(!bank || !accountNum || !amount || amount <= 0) return alert('กรุณากรอกข้อมูลการถอนเงินให้ครบถ้วน');
-
-        const res = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'withdraw', id: currentUser, amount, bank, account: accountNum })
-        });
-        const data = await res.json();
-        if(data.error) return alert('❌ ' + data.error);
-
-        alert('✅ ส่งคำขอถอนเงินจำนวน ' + amount.toLocaleString() + ' บาท เรียบร้อยแล้ว!');
-        document.getElementById('withdraw-bank').value = '';
-        document.getElementById('withdraw-account-num').value = '';
-        document.getElementById('withdraw-amount').value = '';
-        fetchData();
-    }
-
-    function logoutUser() {
-        sessionStorage.removeItem('current_wallet_user');
-        checkLoginStatus();
-    }
-    
-    window.onload = checkLoginStatus;
 </script>
