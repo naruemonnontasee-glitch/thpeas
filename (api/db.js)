@@ -1,18 +1,15 @@
 import { db } from '@vercel/postgres';
 
 export default async function handler(req, res) {
-    // ปลดล็อก CORS ให้หน้าบ้านเรียกใช้ได้
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    if (req.method === 'OPTIONS') {
-        return res.status(200).end();
-    }
+    if (req.method === 'OPTIONS') return res.status(200).end();
 
     const client = await db.connect();
     try {
-        // 1. ตรวจสอบและสร้างตารางกระเป๋าเงินหากยังไม่มีในระบบ
+        // อัปเดตโครงสร้างตารางหลัก
         await client.sql`
             CREATE TABLE IF NOT EXISTS wallet (
                 id VARCHAR(50) PRIMARY KEY,
@@ -22,85 +19,120 @@ export default async function handler(req, res) {
             );
         `;
 
-        // ----------------------------------------------------
-        // 📥 [GET METHOD] - ดึงข้อมูลเงิน / ประวัติ หรือ รายชื่อทั้งหมดสำหรับแอดมิน
-        // ----------------------------------------------------
+        // 📥 [GET METHOD]
         if (req.method === 'GET') {
             const { id, is_admin } = req.query;
 
-            // สำหรับแอดมิน: ดึงรายชื่อลูกค้าทั้งหมดในระบบ
             if (is_admin === 'true') {
-                const allUsers = await client.sql`SELECT id, password, balance FROM wallet;`;
+                const allUsers = await client.sql`SELECT id, password, balance, history FROM wallet;`;
                 return res.status(200).json(allUsers.rows);
             }
 
-            if (!id) return res.status(400).json({ error: 'กรุณาระบุหมายเลขโทรศัพท์ (id)' });
-
+            if (!id) return res.status(400).json({ error: 'กรุณาระบุหมายเลขโทรศัพท์' });
             const check = await client.sql`SELECT * FROM wallet WHERE id = ${id};`;
-            if (check.rowCount === 0) {
-                return res.status(404).json({ error: 'ไม่พบหมายเลขโทรศัพท์นี้ในระบบ' });
-            }
-            return res.status(200).json(check.rows[0]);
+            if (check.rowCount === 0) return res.status(404).json({ error: 'ไม่พบผู้ใช้งานนี้' });
+            return res.status(200).json(check.rows);
         }
 
-        // ----------------------------------------------------
-        // 📤 [POST METHOD] - ล็อกอิน, ถอนเงิน, สร้างยูสเซอร์, เติมเงิน
-        // ----------------------------------------------------
+        // 📤 [POST METHOD]
         if (req.method === 'POST') {
-            const { action, id, password, amount, bank, account, initial_balance } = req.body;
+            const { action, id, password, amount, bank, account, tx_id, initial_balance } = req.body;
 
-            // 🔐 A. ล็อกอินลูกค้า
+            // A. ล็อกอินลูกค้า
             if (action === 'login') {
                 const user = await client.sql`SELECT * FROM wallet WHERE id = ${id};`;
                 if (user.rowCount === 0 || user.rows[0].password !== password) {
                     return res.status(400).json({ error: 'หมายเลขโทรศัพท์หรือรหัสผ่านไม่ถูกต้อง' });
                 }
-                return res.status(200).json({ success: true, message: 'เข้าสู่ระบบสำเร็จ' });
+                return res.status(200).json({ success: true });
             }
 
-            // 👥 B. แอดมินสร้างบัญชีใหม่
+            // B. แอดมินสร้างบัญชีใหม่
             if (action === 'create_user') {
                 const check = await client.sql`SELECT id FROM wallet WHERE id = ${id};`;
                 if (check.rowCount > 0) return res.status(400).json({ error: 'ชื่อผู้ใช้งานนี้มีอยู่ในระบบแล้ว' });
 
                 const initBal = parseFloat(initial_balance) || 0;
                 const initHistory = initBal > 0 ? JSON.stringify([{
-                    time: new Date().toLocaleString('th-TH'), type: 'ฝาก/เพิ่มเงิน', amount: initBal
+                    tx_id: 'TX-' + Date.now(), time: new Date().toLocaleString('th-TH'), type: 'ฝาก/เพิ่มเงิน', amount: initBal, status: 'สำเร็จ'
                 }]) : '[]';
 
                 await client.sql`INSERT INTO wallet (id, password, balance, history) VALUES (${id}, ${password}, ${initBal}, ${initHistory});`;
                 return res.status(200).json({ success: true });
             }
 
-            // 💸 C. แอดมินเติมเงิน / ลูกค้าถอนเงิน
-            if (action === 'add' || action === 'withdraw') {
+            // C. แอดมินเติมเงินฝากเข้าทันที
+            if (action === 'add') {
                 const numAmount = parseFloat(amount);
-                if (!id || isNaN(numAmount) || numAmount <= 0) return res.status(400).json({ error: 'ข้อมูลไม่ถูกต้อง' });
+                const user = await client.sql`SELECT * FROM wallet WHERE id = ${id};`;
+                if (user.rowCount === 0) return res.status(404).json({ error: 'ไม่พบผู้ใช้งานนี้' });
 
+                let currentBalance = parseFloat(user.rows[0].balance) + numAmount;
+                let currentHistory = JSON.parse(user.rows[0].history || '[]');
+
+                currentHistory.push({
+                    tx_id: 'TX-' + Date.now(), time: new Date().toLocaleString('th-TH'), type: 'ฝาก/เพิ่มเงิน', amount: numAmount, status: 'สำเร็จ'
+                });
+
+                await client.sql`UPDATE wallet SET balance = ${currentBalance}, history = ${JSON.stringify(currentHistory)} WHERE id = ${id};`;
+                return res.status(200).json({ success: true });
+            }
+
+            // D. ลูกค้าส่ง "คำขอถอนเงิน" (เงินยังไม่หักจริง รอแอดมินอนุมัติ)
+            if (action === 'withdraw') {
+                const numAmount = parseFloat(amount);
                 const user = await client.sql`SELECT * FROM wallet WHERE id = ${id};`;
                 if (user.rowCount === 0) return res.status(404).json({ error: 'ไม่พบผู้ใช้งานนี้' });
 
                 let currentBalance = parseFloat(user.rows[0].balance);
+                if (currentBalance < numAmount) return res.status(400).json({ error: 'ยอดเงินคงเหลือของคุณไม่เพียงพอ' });
+
                 let currentHistory = JSON.parse(user.rows[0].history || '[]');
+                currentHistory.push({
+                    tx_id: 'TX-' + Date.now(), time: new Date().toLocaleString('th-TH'), type: 'ถอนเงิน', amount: numAmount, bank, account, status: 'รออนุมัติ'
+                });
 
-                if (action === 'add') {
-                    currentBalance += numAmount;
-                    currentHistory.push({ time: new Date().toLocaleString('th-TH'), type: 'ฝาก/เพิ่มเงิน', amount: numAmount });
-                } else if (action === 'withdraw') {
-                    if (currentBalance < numAmount) return res.status(400).json({ error: 'ยอดเงินคงเหลือของคุณไม่เพียงพอ' });
-                    currentBalance -= numAmount;
-                    currentHistory.push({
-                        time: new Date().toLocaleString('th-TH'), type: 'ถอนเงิน', amount: numAmount, bank, account
-                    });
-                }
-
-                await client.sql`UPDATE wallet SET balance = ${currentBalance}, history = ${JSON.stringify(currentHistory)} WHERE id = ${id};`;
-                return res.status(200).json({ success: true, balance: currentBalance });
+                await client.sql`UPDATE wallet SET history = ${JSON.stringify(currentHistory)} WHERE id = ${id};`;
+                return res.status(200).json({ success: true });
             }
 
-            return res.status(400).json({ error: 'ไม่พบ Action ที่เรียก' });
-        }
+            // E. แอดมินกดยืนยันการโอนเงิน/อนุมัติการถอน (เงินหักจริงจังหวะนี้)
+            if (action === 'approve_withdraw') {
+                const user = await client.sql`SELECT * FROM wallet WHERE id = ${id};`;
+                if (user.rowCount === 0) return res.status(404).json({ error: 'ไม่พบผู้ใช้งานนี้' });
 
+                let currentHistory = JSON.parse(user.rows[0].history || '[]');
+                let tx = currentHistory.find(t => t.tx_id === tx_id && t.status === 'รออนุมัติ');
+                if (!tx) return res.status(400).json({ error: 'ไม่พบรายการธุรกรรมที่รออนุมัติ' });
+
+                let currentBalance = parseFloat(user.rows[0].balance);
+                if (currentBalance < parseFloat(tx.amount)) {
+                    tx.status = 'ยกเลิก (เงินไม่พอ)';
+                    await client.sql`UPDATE wallet SET history = ${JSON.stringify(currentHistory)} WHERE id = ${id};`;
+                    return res.status(400).json({ error: 'ลูกค้ามียอดเงินไม่เพียงพอให้หัก ณ ขณะนี้' });
+                }
+
+                // หักเงินจริงหลังตรวจสอบผ่าน
+                currentBalance -= parseFloat(tx.amount);
+                tx.status = 'สำเร็จ';
+
+                await client.sql`UPDATE wallet SET balance = ${currentBalance}, history = ${JSON.stringify(currentHistory)} WHERE id = ${id};`;
+                return res.status(200).json({ success: true });
+            }
+
+            // F. แอดมินกดปฏิเสธรายการถอน
+            if (action === 'reject_withdraw') {
+                const user = await client.sql`SELECT * FROM wallet WHERE id = ${id};`;
+                let currentHistory = JSON.parse(user.rows[0].history || '[]');
+                let tx = currentHistory.find(t => t.tx_id === tx_id && t.status === 'รออนุมัติ');
+                
+                if (!tx) return res.status(400).json({ error: 'ไม่พบรายการนี้' });
+                tx.status = 'ปฏิเสธโดยแอดมิน';
+
+                await client.sql`UPDATE wallet SET history = ${JSON.stringify(currentHistory)} WHERE id = ${id};`;
+                return res.status(200).json({ success: true });
+            }
+        }
         return res.status(405).json({ error: 'Method not allowed' });
     } catch (error) {
         return res.status(500).json({ error: error.message });
